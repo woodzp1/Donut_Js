@@ -5,5 +5,8 @@
     "strict": true,
     "outDir": "dist"
   },
-  "include": ["donut.ts"]
+  "include": ["gpu_donut.ts"]
 }
+
+  
+  

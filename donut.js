@@ -8,6 +8,9 @@ const height = canvas.height;
 const img = ctx.createImageData(width, height);
 const data = img.data;
 class vec3 {
+    x;
+    y;
+    z;
     constructor(x, y, z) {
         this.x = x;
         this.y = y;
@@ -38,6 +41,8 @@ class vec3 {
     }
 }
 class vec2 {
+    x;
+    y;
     constructor(x, y) {
         this.x = x;
         this.y = y;
