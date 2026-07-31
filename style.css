@@ -1,0 +1,11 @@
+
+canvas {
+    border: 1px solid;
+    width: 90%;
+    height: 90%;
+    
+
+    image-rendering: crisp-edges;
+    
+
+}
