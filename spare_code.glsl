@@ -89,6 +89,7 @@ void main()
         float dif = clamp( dot(norm,normalize(light)), 0.0, 1.0 );
         float amb = 0.5 + 0.5*dot(norm,vec3(0.0,1.0,0.0));
         col = vec3(0.25,0.4,0.55)*amb * fbm(p) * 0.5+ vec3(0.8,0.7,0.5)*dif * softshadow(p,light,0.1,3.0,0.1);
+       
     }
     else{
         col = vec3(step(vec3(0.9),vec3(dot(light,rd) * 0.2 )));

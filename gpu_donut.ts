@@ -89,7 +89,7 @@ void main()
     vec3 ro = vec3(0,0,-5.5);
     ro.yz = rot2d(iTime) * ro.yz;
     ro.xy = rot2d(iTime * 2.6) * ro.xy;
-    vec3 light = vec3(0,6,-4);
+    vec3 light =   normalize(vec3(1,6,-3));
     light.yz = rot2d(iTime) * light.yz;
     light.xy = rot2d(iTime * 2.6) * light.xy;
     float t = raymarch(ro,rd);
@@ -97,12 +97,16 @@ void main()
     vec3 col = vec3(0.,0.,0.);
     if (t > 0.0){
         vec3 norm = sdgTorus(p,2.0,1.0).gba;
-        float dif = clamp( dot(norm,normalize(light)) *dot(norm,normalize(light)) , 0.0, 1.0 );
+        
+        float dif = clamp(dot(norm,light),0.,0.8);
         float amb = 0.5 + 0.5*dot(norm,vec3(0.0,1.0,0.0));
-        col = vec3(mix((vec3(0.45,0.6,0.75)  *amb * fbm(p)) ,  vec3(0.8,0.7,0.5) ,vec3(dif/(dif + 1.0)))  );    
+        amb = clamp(amb,0.0,0.5);
+        vec3 l_color = vec3(0.8,0.7,0.5);
+        col =  mix(l_color * 0.6,vec3(0.90),fbm(p));
+        col *= amb * vec3(0.45,0.6,0.75) + dif ;
     }
     else{
-        col = vec3(step(vec3(0.9),vec3(dot(light,rd) * 0.2 )));
+        col = vec3(0.15);
     }
     
     // col = col *col;
@@ -149,11 +153,20 @@ gl.vertexAttribPointer(a_position,2,gl.FLOAT,false,0,0);
 const iResolution = gl.getUniformLocation(program,"iResolution");
 const iTime = gl.getUniformLocation(program,"iTime");
 
+const button = document.getElementById("pause") as HTMLButtonElement;
+let clicked = false;
+button.onclick = (event: MouseEvent) => {
+    clicked = !clicked;
+}
+
 function render(delta : number){
     if (!gl) throw new Error("WebGPU not supported");
     gl.uniform2f(iResolution,canvas.width,canvas.height);
-    // gl.uniform1f(iTime,  93 );
-    gl.uniform1f(iTime,  delta * 0.001 );  
+    if (!clicked){
+
+        // gl.uniform1f(iTime,  93.5 );
+        gl.uniform1f(iTime,  delta * 0.001 );  
+    }
     gl.drawArrays(gl.TRIANGLES,0,3);
     requestAnimationFrame(render);
 
