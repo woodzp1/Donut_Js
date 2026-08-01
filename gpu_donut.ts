@@ -12,30 +12,45 @@ void main(){
 const frag_src = `#version 300 es
 precision highp float;
 
+uniform bool circle;
 uniform vec2 iResolution;   
 uniform float iTime;
 out vec4 fragColor;
-
+float sdSphere( vec3 p, float r )
+{
+  return length(p) - r;
+}
 float SDF(vec3 p, vec2 t){
      vec2 q = vec2(length(p.xz)-t.x,p.y);
      return length(q)-t.y;
 }
+vec2 map(vec3 p){
+    float donut = SDF(p,vec2(2.0,1.0));
+    float sphere = sdSphere(p  - vec3(0,sin(iTime) * 3.0,0),1.0);
+    
+    vec2 shape = vec2(donut,0.0);
+    shape = sphere < donut ? vec2(sphere,1.0) : vec2(donut,0.0);
+    if (!circle){
+        shape = vec2(donut,0.0);
+    }
+    return shape;
+}
 
 
-float raymarch(vec3 ro, vec3 rd){
+vec2 raymarch(vec3 ro, vec3 rd){
     float t = 0.0;
-    float d = 0.0;
+    vec2 d = vec2(0);
     for(int i = 0;i <120;i++)
     {
         vec3 p = ro + rd * t;
-        d = SDF(p,vec2(2.0,1.0));
-        if (d < 0.001) return t;
-        if (d > 100.) return -1.0;
-        t += d;
+        d = map(p);
+        if (d.x < 0.001) return vec2(t,d.y);
+        if (d.x > 100.) return vec2(-1.0);
+        t += d.x;
     
     
     }
-    return -1.0;
+    return vec2(-1.0);
 }
 mat2 rot2d(float a){
     return mat2(cos(a),-sin(a),sin(a),cos(a));
@@ -45,6 +60,11 @@ vec4 sdgTorus( vec3 p, float ra, float rb )
     float h = length(p.xz);
     return vec4( length(vec2(h-ra,p.y))-rb,
                  normalize(p*vec3(h-ra,h,h-ra)) );
+}
+vec4 sdgSphere( in vec3 p, in float r )
+{
+    float l = length(p);
+    return vec4(l-r, p/l);
 }
 float gyroid (vec3 seed) {
     return dot(sin(seed),cos(seed.yzx));
@@ -68,11 +88,11 @@ float softshadow( in vec3 ro, in vec3 rd, float mint, float maxt, float k )
     float t = mint;
     for( int i=0; i<256 && t<maxt; i++ )
     {
-        float h = SDF(ro + rd*t,vec2(2,1));
-        if( h<0.001 )
+        vec2 h = map(ro + rd*t);
+        if( h.x < 0.001 )
             return 0.0;
-        res = min( res, k*h/t );
-        t += h;
+        res = min( res, k*h.x/t );
+        t += h.x;
     }
     return res;
 }
@@ -92,17 +112,27 @@ void main()
     vec3 light =   normalize(vec3(1,6,-3));
     light.yz = rot2d(iTime) * light.yz;
     light.xy = rot2d(iTime * 2.6) * light.xy;
-    float t = raymarch(ro,rd);
+    vec2 ray = raymarch(ro,rd);
+    float t = ray.x;
     vec3 p = t * rd + ro;
     vec3 col = vec3(0.,0.,0.);
     if (t > 0.0){
-        vec3 norm = sdgTorus(p,2.0,1.0).gba;
-        
+        vec3 norm;
+        float g;
+        if (circle && ray.y == 1.0){
+            norm = sdgSphere(p - vec3(0,sin(iTime) * 3.0,0),1.0).gba;
+            g = fbm(p - vec3(0,sin(iTime) * 3.0,0));
+        }
+        else{
+            norm = sdgTorus(p,2.0,1.0).gba;
+            g = fbm(p);
+        }
+        norm = normalize(norm);
         float dif = clamp(dot(norm,light),0.,0.8);
         float amb = 0.5 + 0.5*dot(norm,vec3(0.0,1.0,0.0));
         amb = clamp(amb,0.0,0.5);
         vec3 l_color = vec3(0.8,0.7,0.5);
-        col =  mix(l_color * 0.6,vec3(0.90),fbm(p));
+        col =  mix(l_color * 0.6,vec3(0.90),g);
         col *= amb * vec3(0.45,0.6,0.75) + dif ;
     }
     else{
@@ -152,16 +182,24 @@ gl.vertexAttribPointer(a_position,2,gl.FLOAT,false,0,0);
 
 const iResolution = gl.getUniformLocation(program,"iResolution");
 const iTime = gl.getUniformLocation(program,"iTime");
+const circle = gl.getUniformLocation(program,"circle");
 
 const button = document.getElementById("pause") as HTMLButtonElement;
 let clicked = false;
 button.onclick = (event: MouseEvent) => {
     clicked = !clicked;
 }
+const button2 = document.getElementById("circle") as HTMLButtonElement;
+let circle_clicked = 0;
+button2.onclick = (event: MouseEvent) => {
+    circle_clicked =    ~circle_clicked;
+}
+
 
 function render(delta : number){
     if (!gl) throw new Error("WebGPU not supported");
     gl.uniform2f(iResolution,canvas.width,canvas.height);
+    gl.uniform1i(circle,circle_clicked);
     if (!clicked){
 
         // gl.uniform1f(iTime,  93.5 );
