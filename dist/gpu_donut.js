@@ -15,6 +15,7 @@ precision highp float;
 uniform bool circle;
 uniform vec2 iResolution;   
 uniform float iTime;
+uniform bool background;
 out vec4 fragColor;
 float sdSphere( vec3 p, float r )
 {
@@ -26,7 +27,7 @@ float SDF(vec3 p, vec2 t){
 }
 vec2 map(vec3 p){
     float donut = SDF(p,vec2(2.0,1.0));
-    float sphere = sdSphere(p  - vec3(0,sin(iTime) * 3.0,0),1.0);
+    float sphere = sdSphere(p  - vec3(0,sin(iTime) * 4.0,0),1.0);
     
     vec2 shape = vec2(donut,0.0);
     shape = sphere < donut ? vec2(sphere,1.0) : vec2(donut,0.0);
@@ -71,14 +72,11 @@ float gyroid (vec3 seed) {
 }
 float fbm (vec3 seed) {
         float result = 0., a = .5;
-    for (int i = 0; i < 7; ++i) {
-        // extra spicy twist
+    for (int i = 0; i < 6; ++i) {
+        
         seed.z += result*.5;
-
-        // bounce it with abs
         result += abs(gyroid(seed/a))*a;
-
-        a /= 2.;
+        a /= 2.;    
     }
     return result;
 }
@@ -97,6 +95,38 @@ float softshadow( in vec3 ro, in vec3 rd, float mint, float maxt, float k )
     return res;
 }
 
+float noise (vec2 p) {
+    // improvise 3d seed from 2d coordinates
+    vec3 seed = vec3(p, length(p) - iTime * .025);
+    
+    // make it slide along the sin wave
+    return sin(fbm(seed)*7.)*.5+.5;
+}
+float noise2 (vec2 p,float i) {
+    // improvise 3d seed from 2d coordinates
+    vec3 seed = vec3(p,i);
+    
+    // make it slide along the sin wave
+    return sin(fbm(seed)*6.)*.5+.5;
+}
+
+vec3 gradient(float t) {
+    float t2 = t * t;
+    float t3 = t2 * t;
+    float r = 0.2 + 1.5*t - 0.6*t2 + 0.1*t3;
+    float g = 0.05 - 0.4*t + 1.8*t2 - 0.7*t3;
+    float b = 0.5 - 1.7*t + 1.9*t2 - 0.6*t3;
+    return clamp(vec3(r, g, b), 0.0, 1.0);
+}
+vec3 gradient2(float t) {
+    float t2 = t * t;
+    float t3 = t2 * t;
+    float r = -0.05 + 1.5*t - 0.4*t2 - 0.1*t3;
+    float g = -0.1 + 0.2*t + 1.3*t2 - 0.5*t3;
+    float b = 0.1 - 0.3*t + 0.5*t2 + 0.1*t3;
+    return clamp(vec3(r, g, b), 0.0, 1.0);
+}
+
 void main()
 {
     vec2 fragCoord = gl_FragCoord.xy;
@@ -106,7 +136,7 @@ void main()
     vec3 rd = normalize(vec3(uv,1));
     rd.yz = rot2d(iTime) * rd.yz;
     rd.xy = rot2d(iTime * 2.6) * rd.xy;
-    vec3 ro = vec3(0,0,-5.5);
+    vec3 ro = vec3(0,0,-6.5);
     ro.yz = rot2d(iTime) * ro.yz;
     ro.xy = rot2d(iTime * 2.6) * ro.xy;
     vec3 light =   normalize(vec3(1,6,-3));
@@ -118,13 +148,13 @@ void main()
     vec3 col = vec3(0.,0.,0.);
     if (t > 0.0){
         vec3 norm;
-        float g;
+        float g = 0.0;
         if (circle && ray.y == 1.0){
-            norm = sdgSphere(p - vec3(0,sin(iTime) * 3.0,0),1.0).gba;
-            g = fbm(p - vec3(0,sin(iTime) * 3.0,0));
+            norm = sdgSphere(p - vec3(0,sin(iTime) * 4.0,0),1.0).gba;
+            g = fbm(p - vec3(0,sin(iTime) * 4.0,0));
         }
         else{
-            norm = sdgTorus(p,2.0,1.0).gba;
+            norm = sdgTorus(p ,2.0,1.0).gba;
             g = fbm(p);
         }
         norm = normalize(norm);
@@ -136,7 +166,16 @@ void main()
         col *= amb * vec3(0.45,0.6,0.75) + dif ;
     }
     else{
-        col = vec3(0.15);
+        if (background){
+             float n = noise(uv);
+        float m = noise2(uv,n);
+    
+        col = vec3(gradient2(m)) * gradient(n);
+        }
+        else{
+            col = vec3(0.15);
+        }
+       
     }
     
     // col = col *col;
@@ -177,6 +216,7 @@ gl.vertexAttribPointer(a_position, 2, gl.FLOAT, false, 0, 0);
 const iResolution = gl.getUniformLocation(program, "iResolution");
 const iTime = gl.getUniformLocation(program, "iTime");
 const circle = gl.getUniformLocation(program, "circle");
+const background = gl.getUniformLocation(program, "background");
 const button = document.getElementById("pause");
 let clicked = false;
 button.onclick = (event) => {
@@ -187,11 +227,17 @@ let circle_clicked = 0;
 button2.onclick = (event) => {
     circle_clicked = ~circle_clicked;
 };
+const button3 = document.getElementById("background");
+let background_clicked = 0;
+button3.onclick = (event) => {
+    background_clicked = ~background_clicked;
+};
 function render(delta) {
     if (!gl)
         throw new Error("WebGPU not supported");
     gl.uniform2f(iResolution, canvas.width, canvas.height);
     gl.uniform1i(circle, circle_clicked);
+    gl.uniform1i(background, background_clicked);
     if (!clicked) {
         // gl.uniform1f(iTime,  93.5 );
         gl.uniform1f(iTime, delta * 0.001);

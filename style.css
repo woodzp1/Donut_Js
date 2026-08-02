@@ -4,11 +4,11 @@ html, body {
 }
 canvas {
     border: 1px solid;
-    width: 100%;
+    width: 99.9%;
     height: 100%;
     
 
-    image-rendering: crisp-edges;
+    image-rendering: optimizeQuality;
     
 
 }
