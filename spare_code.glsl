@@ -137,22 +137,27 @@ void main()
     vec3 col = vec3(0.,0.,0.);
     if (t > 0.0){
         vec3 norm;
-        float g = 0;
-        if (circle && ray.y == 1.0){
+        float g = 0.0;
+        if (circle == 1 && ray.y == 1.0){
             norm = sdgSphere(p - vec3(0,sin(iTime) * 4.0,0),1.0).gba;
-            g = fbm(p - vec3(0,sin(iTime) * 4.0,0));
+            p -= vec3(0,sin(iTime) * 4.0,0);
+            g = fbm(p );
         }
         else{
             norm = sdgTorus(p ,2.0,1.0).gba;
             g = fbm(p);
         }
         norm = normalize(norm);
+        
         float dif = clamp(dot(norm,light),0.,0.8);
-        float amb = 0.5 + 0.5*dot(norm,vec3(0.0,1.0,0.0));
+        
+        float amb = 0.5 + 0.5*dot(norm,light);
+        
+        
         amb = clamp(amb,0.0,0.5);
-        vec3 l_color = vec3(0.8,0.7,0.5);
+        vec3 l_color = vec3(0.761, 0.314, 0.118);
         col =  mix(l_color * 0.6,vec3(0.90),g);
-        col *= amb * vec3(0.45,0.6,0.75) + dif ;
+        col *= amb * vec3(0.761, 0.314, 0.118) * gradient2(fbm(p)) + dif ;
     }
     else{
         if (background){
